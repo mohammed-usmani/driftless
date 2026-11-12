@@ -25,7 +25,8 @@ public class ChunkStore {
         this.jdbc = jdbc;
     }
 
-    static String table(Generation g) {
+    /** The generation's chunk table name, checked safe for SQL. */
+    public static String table(Generation g) {
         if (!SAFE_TABLE.matcher(g.chunkTable()).matches()) {
             throw new IllegalStateException("unsafe chunk table name: " + g.chunkTable());
         }
