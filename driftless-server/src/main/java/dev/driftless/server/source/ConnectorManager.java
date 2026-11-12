@@ -100,6 +100,8 @@ public class ConnectorManager {
         c.put("snapshot.mode", "no_data");
         c.put("decimal.handling.mode", "string");
         c.put("tombstones.on.delete", "false");
+        // Debezium skips truncates by default; Driftless honours them
+        c.put("skipped.operations", "none");
         c.put("notification.enabled.channels", "sink");
         c.put("notification.sink.topic.name", notificationTopic(p));
         c.put("topic.creation.default.partitions", "6");

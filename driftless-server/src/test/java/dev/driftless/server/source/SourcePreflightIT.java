@@ -68,6 +68,18 @@ class SourcePreflightIT extends IntegrationTest {
         assertOneProblem(new SourcePreflight(restricted).check(pipeline), "INSERT");
     }
 
+    @Test
+    void unsupportedColumnTypeIsReported() {
+        sourceJdbc().execute("ALTER TABLE " + T + " ALTER COLUMN category TYPE timestamp USING NULL");
+        assertOneProblem(preflight.check(pipeline), "category has type timestamp");
+    }
+
+    @Test
+    void templateColumnThatDoesNotExistIsReported() {
+        sourceJdbc().execute("ALTER TABLE " + T + " DROP COLUMN body");
+        assertOneProblem(preflight.check(pipeline), "column body");
+    }
+
     private static void assertOneProblem(List<String> problems, String fragment) {
         assertThat(problems).hasSize(1);
         assertThat(problems.getFirst()).contains(fragment);
