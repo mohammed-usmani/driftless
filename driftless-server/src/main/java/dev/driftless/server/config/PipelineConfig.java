@@ -28,6 +28,13 @@ public record PipelineConfig(
 
     public record Chunking(@DefaultValue("2000") @Min(100) int maxChars, @DefaultValue("200") @Min(0) int overlapChars) { }
 
+    /** Identifies everything that shapes a generation's index; a different hash needs a migration. */
+    public String configHash() {
+        return dev.driftless.server.change.Hashes.sha256Hex(String.join("\u0001", embedding.provider(), embedding.model(),
+                Integer.toString(embedding.dimensions()), text, Integer.toString(chunking.maxChars()),
+                Integer.toString(chunking.overlapChars()), String.join(",", metadata)));
+    }
+
     public String schema() {
         int dot = table.indexOf('.');
         return dot < 0 ? "public" : table.substring(0, dot);
