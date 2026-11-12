@@ -1,0 +1,43 @@
+{
+  "before": {
+    "id": 22,
+    "title": "t990212",
+    "body": "jdhreolrbmbnarslwavirhbzhwwsmadspzntpnkh",
+    "category": null,
+    "tenant_id": null,
+    "acl": null,
+    "updated_at": "2026-11-12T17:06:12.602308Z"
+  },
+  "after": {
+    "id": 22,
+    "title": "t74306",
+    "body": "lhypdojuemnuxfnkwsnfguyrlszaqdysbretsmcn",
+    "category": null,
+    "tenant_id": null,
+    "acl": null,
+    "updated_at": "2026-11-12T17:06:12.602308Z"
+  },
+  "source": {
+    "version": "3.7.1.Final",
+    "connector": "postgresql",
+    "name": "driftless.vo_articles",
+    "ts_ms": 1794503172625,
+    "snapshot": "false",
+    "db": "source",
+    "sequence": "[\"32419528\",\"32377368\"]",
+    "ts_us": 1794503172625048,
+    "ts_ns": 1794503172625048000,
+    "schema": "public",
+    "table": "vo_articles",
+    "txId": 765,
+    "lsn": 32377368,
+    "xmin": null,
+    "origin": null,
+    "origin_lsn": null
+  },
+  "transaction": null,
+  "op": "u",
+  "ts_ms": 1794503172975,
+  "ts_us": 1794503172975300,
+  "ts_ns": 1794503172975300434
+}

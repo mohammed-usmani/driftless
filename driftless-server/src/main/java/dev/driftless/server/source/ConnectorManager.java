@@ -71,6 +71,12 @@ public class ConnectorManager {
         return running ? State.RUNNING : State.STARTING;
     }
 
+    /** Restarts the connector and its tasks (Debezium resumes from its stored offset). */
+    public void restart(String pipeline) {
+        connect.post().uri("/connectors/{name}/restart?includeTasks=true", connectorName(pipeline))
+                .retrieve().toBodilessEntity();
+    }
+
     public List<String> names() {
         return List.of(connect.get().uri("/connectors").retrieve().body(String[].class));
     }

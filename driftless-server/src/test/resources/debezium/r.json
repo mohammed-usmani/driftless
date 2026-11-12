@@ -1,0 +1,35 @@
+{
+  "before": null,
+  "after": {
+    "id": 42,
+    "title": "t154939",
+    "body": "ucmmswtssgeecnljtyedjlrfqbgvjwllmwitxujv",
+    "category": null,
+    "tenant_id": null,
+    "acl": null,
+    "updated_at": "2026-11-12T17:06:17.530467Z"
+  },
+  "source": {
+    "version": "3.7.1.Final",
+    "connector": "postgresql",
+    "name": "driftless.vo_articles",
+    "ts_ms": 1794503177696,
+    "snapshot": "incremental",
+    "db": "source",
+    "sequence": "[\"132694128\",\"132705160\"]",
+    "ts_us": 1794503177696504,
+    "ts_ns": 1794503177696504129,
+    "schema": "public",
+    "table": "vo_articles",
+    "txId": null,
+    "lsn": null,
+    "xmin": null,
+    "origin": null,
+    "origin_lsn": null
+  },
+  "transaction": null,
+  "op": "r",
+  "ts_ms": 1794503177696,
+  "ts_us": 1794503177696514,
+  "ts_ns": 1794503177696514629
+}
