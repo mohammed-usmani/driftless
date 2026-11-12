@@ -47,6 +47,15 @@ public record DriftlessProperties(
         }
     }
 
+    /** The pipeline, or a 404 for the API. */
+    public PipelineConfig require(String name) {
+        PipelineConfig p = pipeline(name);
+        if (p == null) {
+            throw new dev.driftless.server.api.NotFoundException("no pipeline " + name);
+        }
+        return p;
+    }
+
     public PipelineConfig pipeline(String name) {
         return pipelines.stream().filter(p -> p.name().equals(name)).findFirst().orElse(null);
     }

@@ -8,3 +8,8 @@ logging:
   level:
     root: WARN
     dev.driftless: INFO
+
+spring:
+  datasource:
+    hikari:
+      maximum-pool-size: 5

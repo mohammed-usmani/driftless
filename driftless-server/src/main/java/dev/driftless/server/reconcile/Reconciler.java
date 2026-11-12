@@ -51,10 +51,12 @@ public class Reconciler {
     private final SnapshotQueue snapshots;
     private final LeakRepair leaks;
     private final JdbcTemplate jdbc;
+    private final dev.driftless.server.ops.DriftlessMetrics metrics;
     private final Clock clock;
 
     public Reconciler(DriftlessProperties props, GenerationRepository generations, RowStateRepository rows, SourceReader reader,
-                      Preparer preparer, DriftRepository drift, SnapshotQueue snapshots, LeakRepair leaks, JdbcTemplate jdbc, Clock clock) {
+                      Preparer preparer, DriftRepository drift, SnapshotQueue snapshots, LeakRepair leaks, JdbcTemplate jdbc,
+                      dev.driftless.server.ops.DriftlessMetrics metrics, Clock clock) {
         this.props = props;
         this.generations = generations;
         this.rows = rows;
@@ -64,6 +66,7 @@ public class Reconciler {
         this.snapshots = snapshots;
         this.leaks = leaks;
         this.jdbc = jdbc;
+        this.metrics = metrics;
         this.clock = clock;
     }
 
@@ -99,6 +102,7 @@ public class Reconciler {
         DriftReport report = new DriftReport(0, pipeline, g.id(), started, clock.instant(), sample.size(), indexed.size(),
                 count(items, DriftReport.Kind.MISSING), count(items, DriftReport.Kind.MISMATCH), count(items, DriftReport.Kind.LEAK), 0);
         long id = drift.save(report, items);
+        items.forEach(i -> metrics.drift(pipeline, i.kind().name()));
         if (!items.isEmpty()) {
             log.warn("drift in {}: {} missing, {} mismatched, {} leaked", pipeline, report.missing(), report.mismatched(), report.leaked());
             if (props.reconciler().autoRepair()) {

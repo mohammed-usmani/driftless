@@ -59,6 +59,16 @@ public class GenerationRepository {
         return find(id).orElseThrow();
     }
 
+    /** Generation 1, LIVE, unless the pipeline has one already. Safe when several instances boot at once. */
+    @Transactional
+    public Optional<Generation> createFirstIfAbsent(PipelineConfig p) {
+        jdbc.queryForObject("SELECT name FROM pipeline WHERE name = ? FOR UPDATE", String.class, p.name());
+        if (jdbc.queryForObject("SELECT exists(SELECT 1 FROM generation WHERE pipeline = ?)", Boolean.class, p.name())) {
+            return Optional.empty();
+        }
+        return Optional.of(create(p, GenerationStatus.LIVE));
+    }
+
     public Optional<Generation> find(long id) {
         return jdbc.query("SELECT " + COLUMNS + " FROM generation WHERE id = ?", GenerationRepository::map, id).stream().findFirst();
     }

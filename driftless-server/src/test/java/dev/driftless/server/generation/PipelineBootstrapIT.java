@@ -69,4 +69,25 @@ class PipelineBootstrapIT extends IntegrationTest {
         assertThat(connectors.state("bt_blocked")).isEqualTo(ConnectorManager.State.MISSING);
         assertThat(generations.status("bt_ok")).isEqualTo(PipelineStatus.ACTIVE);
     }
+
+    @Test
+    void twoInstancesBootingTogetherCreateOneGeneration() throws Exception {
+        SourceDb.createArticles(sourceJdbc(), "bt_race");
+        var p = dev.driftless.server.support.Pipelines.articles("bt_race");
+        var start = new java.util.concurrent.CountDownLatch(1);
+        var pool = java.util.concurrent.Executors.newFixedThreadPool(2);
+        try {
+            var a = pool.submit(() -> { start.await(); bootstrap.run(p); return null; });
+            var b = pool.submit(() -> { start.await(); bootstrap.run(p); return null; });
+            start.countDown();
+            a.get();
+            b.get();
+        } finally {
+            pool.shutdownNow();
+        }
+        assertThat(generations.all("bt_race")).hasSize(1);
+        assertThat(generations.live("bt_race")).isPresent();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM snapshot_request WHERE pipeline = 'bt_race' AND reason = 'BACKFILL'", Long.class))
+                .isEqualTo(1);
+    }
 }

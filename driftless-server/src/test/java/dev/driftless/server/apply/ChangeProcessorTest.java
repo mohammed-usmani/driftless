@@ -59,7 +59,7 @@ class ChangeProcessorTest {
             applied.add(e);
             return e.op() == Op.TRUNCATE ? Outcome.TRUNCATE : Outcome.EMBED;
         });
-        processor = new ChangeProcessor(generations, rows, new Preparer(), embeddings, applier, failed, recent, Clock.systemUTC());
+        processor = new ChangeProcessor(generations, rows, new Preparer(), embeddings, applier, failed, recent, mock(dev.driftless.server.ops.DriftlessMetrics.class), Clock.systemUTC());
     }
 
     private static ChangeEvent upsert(String key, long v, String title) {

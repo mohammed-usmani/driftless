@@ -31,11 +31,12 @@ public class ChangeProcessor {
     private final ChangeApplier applier;
     private final FailedChangeRepository failed;
     private final RecentChangeRepository recent;
+    private final dev.driftless.server.ops.DriftlessMetrics metrics;
     private final Clock clock;
 
     public ChangeProcessor(GenerationRepository generations, RowStateRepository rows, Preparer preparer,
                            EmbeddingService embeddings, ChangeApplier applier, FailedChangeRepository failed,
-                           RecentChangeRepository recent, Clock clock) {
+                           RecentChangeRepository recent, dev.driftless.server.ops.DriftlessMetrics metrics, Clock clock) {
         this.generations = generations;
         this.rows = rows;
         this.preparer = preparer;
@@ -43,6 +44,7 @@ public class ChangeProcessor {
         this.applier = applier;
         this.failed = failed;
         this.recent = recent;
+        this.metrics = metrics;
         this.clock = clock;
     }
 
@@ -68,6 +70,7 @@ public class ChangeProcessor {
         }
         out.addAll(segment(targets, segment));
         recent.record(out);
+        metrics.applied(out);
         return out;
     }
 
@@ -99,6 +102,11 @@ public class ChangeProcessor {
             List<String> chunks = new ArrayList<>();
             ws.forEach(w -> chunks.addAll(w.prepared().chunks()));
             EmbedResult r = embeddings.embed(spec, chunks);
+            long missedChars = 0;
+            for (int i = 0; i < chunks.size(); i++) {
+                missedChars += r.cached()[i] ? 0 : chunks.get(i).length();
+            }
+            metrics.embedded(ws.getFirst().event().pipeline(), spec.model(), r.cacheHits(), r.embedded(), r.providerCalls(), missedChars);
             int at = 0;
             for (Work w : ws) {
                 int n = w.prepared().chunks().size();

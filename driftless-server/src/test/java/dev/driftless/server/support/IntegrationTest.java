@@ -37,8 +37,8 @@ public abstract class IntegrationTest {
             .withDatabaseName("driftless")
             .withNetwork(NETWORK)
             .withNetworkAliases("pg")
-            .withCommand("postgres", "-c", "wal_level=logical", "-c", "max_replication_slots=20",
-                    "-c", "max_wal_senders=20", "-c", "fsync=off");
+            .withCommand("postgres", "-c", "wal_level=logical", "-c", "max_replication_slots=60", "-c", "max_connections=400",
+                    "-c", "max_wal_senders=60", "-c", "fsync=off");
 
     @ServiceConnection
     protected static final KafkaContainer KAFKA = new KafkaContainer("apache/kafka:4.1.0")

@@ -52,10 +52,7 @@ public class PipelineBootstrap {
             return;
         }
         generations.upsertPipeline(p, PipelineStatus.ACTIVE, null);
-        Generation created = null;
-        if (generations.targets(p.name()).isEmpty()) {
-            created = generations.create(p, GenerationStatus.LIVE);
-        }
+        Generation created = generations.createFirstIfAbsent(p).orElse(null);
         generations.targets(p.name()).forEach(chunks::createTable);
         connectors.ensure(p);
         if (created != null) {
