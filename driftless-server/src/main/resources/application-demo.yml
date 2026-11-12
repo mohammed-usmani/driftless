@@ -1,0 +1,23 @@
+# The docker-compose demo: one pipeline over the help-centre articles table, embedded by Ollama on the host.
+driftless:
+  embedding:
+    ollama-url: ${DRIFTLESS_OLLAMA_URL:http://host.docker.internal:11434}
+    batch-size: 32
+  reconciler:
+    # check every row each run: the demo table is small, and a sample would usually miss the handful of rows chaos breaks
+    sample-size: 20000
+    grace-seconds: 10
+    auto-repair: false
+  pipelines:
+    - name: articles
+      table: public.articles
+      key: id
+      text: "{title}\n\n{body}"
+      metadata: [category, tenant_id, acl]
+      embedding:
+        provider: ollama
+        model: ${ARTICLES_EMBED_MODEL:nomic-embed-text}
+        dimensions: ${ARTICLES_EMBED_DIMS:768}
+      chunking:
+        max-chars: ${ARTICLES_MAX_CHARS:2000}
+        overlap-chars: 200

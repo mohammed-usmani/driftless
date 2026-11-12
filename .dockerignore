@@ -1,0 +1,9 @@
+**/target
+.git
+.superpowers
+.idea
+*.iml
+.env
+docs
+ops
+scripts

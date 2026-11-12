@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>dev.driftless</groupId>
+        <artifactId>driftless-parent</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>driftless-loadgen</artifactId>
+    <name>Driftless load generator</name>
+    <description>Seeds the demo source table and writes a configurable mix of changes to it</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>tools.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <finalName>driftless-loadgen</finalName>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <mainClass>dev.driftless.loadgen.LoadGen</mainClass>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

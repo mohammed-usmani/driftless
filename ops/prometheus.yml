@@ -1,0 +1,8 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: driftless
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["driftless-1:8189", "driftless-2:8189"]

@@ -1,0 +1,289 @@
+{
+  "uid": "driftless",
+  "title": "Driftless",
+  "schemaVersion": 41,
+  "refresh": "10s",
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "pipeline",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "query": "label_values(driftless_changes_total, pipeline)",
+        "includeAll": true,
+        "multi": true,
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "refresh": 2
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Freshness: source commit to searchable",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.5, sum by (le, pipeline) (rate(driftless_freshness_seconds_bucket{pipeline=~\"$pipeline\"}[5m])))",
+          "legendFormat": "p50 {{pipeline}}"
+        },
+        {
+          "refId": "B",
+          "expr": "histogram_quantile(0.99, sum by (le, pipeline) (rate(driftless_freshness_seconds_bucket{pipeline=~\"$pipeline\"}[5m])))",
+          "legendFormat": "p99 {{pipeline}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Changes applied, by outcome",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (outcome) (rate(driftless_changes_total{pipeline=~\"$pipeline\"}[5m]))",
+          "legendFormat": "{{outcome}}"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Embedding cache hit ratio",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(driftless_embed_chunks_total{pipeline=~\"$pipeline\",result=\"hit\"}[5m])) / sum(rate(driftless_embed_chunks_total{pipeline=~\"$pipeline\"}[5m]))",
+          "legendFormat": "hit ratio"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Embedding provider calls",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (pipeline) (rate(driftless_embed_provider_calls_total{pipeline=~\"$pipeline\"}[5m]))",
+          "legendFormat": "{{pipeline}}"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Estimated embedding cost",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 16,
+        "w": 6,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (pipeline) (driftless_embed_estimated_cost_usd_total{pipeline=~\"$pipeline\"})",
+          "legendFormat": "{{pipeline}}"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Consumer lag (records)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 6,
+        "y": 16,
+        "w": 6,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max by (pipeline) (driftless_consumer_lag_records{pipeline=~\"$pipeline\"})",
+          "legendFormat": "{{pipeline}}"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "gauge",
+      "title": "Migration progress",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 16,
+        "w": 6,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max by (pipeline) (driftless_migration_progress_ratio{pipeline=~\"$pipeline\"})",
+          "legendFormat": "{{pipeline}}"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "stat",
+      "title": "Provider circuit open",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 18,
+        "y": 16,
+        "w": 6,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max by (pipeline) (driftless_provider_circuit_open{pipeline=~\"$pipeline\"})",
+          "legendFormat": "{{pipeline}}"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Drift found by the reconciler",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 24,
+        "w": 24,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (kind) (increase(driftless_drift_items_total{pipeline=~\"$pipeline\"}[1h]))",
+          "legendFormat": "{{kind}}"
+        }
+      ]
+    }
+  ]
+}

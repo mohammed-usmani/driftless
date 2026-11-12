@@ -19,6 +19,7 @@
 
     <modules>
         <module>driftless-server</module>
+        <module>driftless-loadgen</module>
     </modules>
 
     <properties>
