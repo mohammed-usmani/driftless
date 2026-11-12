@@ -105,6 +105,13 @@ public abstract class IntegrationTest {
         return sourceJdbc;
     }
 
+    /** Changes committed before Debezium's slot is active are not streamed, so tests wait for it. */
+    protected static void awaitSlotActive(String pipeline) {
+        org.awaitility.Awaitility.await().atMost(Duration.ofMinutes(1)).until(() -> Boolean.TRUE.equals(
+                sourceJdbc().queryForObject("SELECT exists(SELECT 1 FROM pg_replication_slots WHERE slot_name = ? AND active)",
+                        Boolean.class, "driftless_" + pipeline)));
+    }
+
     @Autowired
     protected JdbcTemplate jdbc;
 
