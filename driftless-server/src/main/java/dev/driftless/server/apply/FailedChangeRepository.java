@@ -28,4 +28,15 @@ public class FailedChangeRepository {
     public void recordUndecodable(String pipeline, String reason, String raw) {
         jdbc.update("INSERT INTO failed_change (pipeline, reason, payload) VALUES (?, ?, ?)", pipeline, reason, raw);
     }
+
+    /** A successful apply settles every open or retrying failure of those keys. */
+    public void resolve(String pipeline, java.util.Collection<String> keys) {
+        if (keys.isEmpty()) {
+            return;
+        }
+        jdbc.update("""
+                UPDATE failed_change SET status = 'RESOLVED', resolved_at = now()
+                WHERE pipeline = ? AND row_key = ANY (?) AND status IN ('OPEN', 'RETRYING')""",
+                pipeline, keys.toArray(String[]::new));
+    }
 }

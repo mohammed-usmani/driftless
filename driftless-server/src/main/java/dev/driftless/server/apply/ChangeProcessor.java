@@ -123,6 +123,16 @@ public class ChangeProcessor {
             }
         }
         failures.forEach((e, reason) -> failed.record(e.pipeline(), e.key(), e.version(), reason, e.row()));
+        java.util.Set<String> succeeded = new java.util.HashSet<>();
+        for (Applied a : out) {
+            if (a.outcome() != Outcome.FAILED && a.outcome() != Outcome.STALE) {
+                succeeded.add(a.key());
+            }
+        }
+        failures.keySet().forEach(e -> succeeded.remove(e.key()));
+        if (!succeeded.isEmpty()) {
+            failed.resolve(events.getFirst().pipeline(), succeeded);
+        }
         return out;
     }
 
