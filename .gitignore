@@ -1,0 +1,6 @@
+docs/superpowers/
+.superpowers/
+target/
+.idea/
+*.iml
+.env
