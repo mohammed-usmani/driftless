@@ -83,6 +83,9 @@ public abstract class IntegrationTest {
         r.add("driftless.source.connect-port", () -> 5432);
         r.add("driftless.kafka-connect-url", IntegrationTest::connectUrl);
         r.add("management.server.port", () -> 0);
+        // every cached test context gets its own consumer group, or contexts would split partitions between them
+        String group = "driftless-" + java.util.UUID.randomUUID();
+        r.add("driftless.consumer-group", () -> group);
     }
 
     protected static String sourceJdbcUrl() {

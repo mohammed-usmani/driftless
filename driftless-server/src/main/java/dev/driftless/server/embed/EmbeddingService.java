@@ -57,7 +57,7 @@ public class EmbeddingService {
 
     public EmbedResult embed(EmbeddingSpec spec, List<String> chunks) {
         if (chunks.isEmpty()) {
-            return new EmbedResult(List.of(), 0, 0, 0);
+            return new EmbedResult(List.of(), 0, 0, 0, new boolean[0]);
         }
         Map<String, String> textByHash = new LinkedHashMap<>();
         List<String> hashes = new ArrayList<>(chunks.size());
@@ -69,6 +69,10 @@ public class EmbeddingService {
         Map<String, float[]> vectors = new HashMap<>(cache.getAll(spec.model(), textByHash.keySet()));
         vectors.values().removeIf(v -> v.length != spec.dimensions());
         int hits = vectors.size();
+        boolean[] cached = new boolean[hashes.size()];
+        for (int i = 0; i < cached.length; i++) {
+            cached[i] = vectors.containsKey(hashes.get(i));
+        }
 
         List<String> missing = textByHash.keySet().stream().filter(h -> !vectors.containsKey(h)).toList();
         int calls = 0;
@@ -83,7 +87,7 @@ public class EmbeddingService {
             cache.putAll(spec.model(), fresh);
             vectors.putAll(fresh);
         }
-        return new EmbedResult(hashes.stream().map(vectors::get).toList(), hits, missing.size(), calls);
+        return new EmbedResult(hashes.stream().map(vectors::get).toList(), hits, missing.size(), calls, cached);
     }
 
     /** One query vector, not cached (queries rarely repeat and must not fill the cache). */

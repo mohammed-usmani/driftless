@@ -13,6 +13,21 @@ spring:
     password: ${DRIFTLESS_DB_PASSWORD:driftless}
   kafka:
     bootstrap-servers: ${DRIFTLESS_KAFKA:localhost:9094}
+    consumer:
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      max-poll-records: 500
+      key-deserializer: org.apache.kafka.common.serialization.ByteArrayDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.ByteArrayDeserializer
+      properties:
+        # topics are matched by pattern; a new pipeline's topic is noticed on the next metadata refresh
+        metadata.max.age.ms: 5000
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.ByteArraySerializer
+      value-serializer: org.apache.kafka.common.serialization.ByteArraySerializer
+    listener:
+      type: batch
+      ack-mode: manual
 
 driftless:
   kafka-connect-url: ${DRIFTLESS_CONNECT_URL:http://localhost:8083}
