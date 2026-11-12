@@ -31,7 +31,8 @@ public record DriftlessProperties(
     public record Reconciler(
             @DefaultValue("200") int sampleSize,
             @DefaultValue("30") int graceSeconds,
-            @DefaultValue("false") boolean autoRepair) { }
+            @DefaultValue("false") boolean autoRepair,
+            @DefaultValue("PT5M") java.time.Duration interval) { }
 
     public record Embedding(
             @DefaultValue("http://localhost:11434") String ollamaUrl,
