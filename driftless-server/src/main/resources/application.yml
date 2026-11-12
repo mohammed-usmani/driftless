@@ -1,0 +1,50 @@
+server:
+  port: ${DRIFTLESS_PORT:8180}
+  shutdown: graceful
+
+spring:
+  application:
+    name: driftless
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+  datasource:
+    url: ${DRIFTLESS_DB_URL:jdbc:postgresql://localhost:5434/driftless}
+    username: ${DRIFTLESS_DB_USER:driftless}
+    password: ${DRIFTLESS_DB_PASSWORD:driftless}
+  kafka:
+    bootstrap-servers: ${DRIFTLESS_KAFKA:localhost:9094}
+
+driftless:
+  kafka-connect-url: ${DRIFTLESS_CONNECT_URL:http://localhost:8083}
+  admin-token: ${DRIFTLESS_ADMIN_TOKEN:}
+  source:
+    url: ${DRIFTLESS_SOURCE_URL:jdbc:postgresql://localhost:5433/source}
+    user: ${DRIFTLESS_SOURCE_USER:driftless}
+    password: ${DRIFTLESS_SOURCE_PASSWORD:driftless}
+
+logging:
+  structured:
+    format:
+      console: ${DRIFTLESS_LOG_FORMAT:ecs}
+
+management:
+  server:
+    # actuator lives on its own port: scrape and probe it from inside the network, never expose it
+    port: ${DRIFTLESS_MANAGEMENT_PORT:8189}
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-components: always
+      group:
+        liveness:
+          include: livenessState,ping
+        readiness:
+          include: readinessState,db
+  metrics:
+    tags:
+      application: ${spring.application.name}

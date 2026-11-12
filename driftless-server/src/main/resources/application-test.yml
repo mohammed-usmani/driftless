@@ -1,0 +1,10 @@
+driftless:
+  admin-token: test-admin-token
+
+logging:
+  structured:
+    format:
+      console: ""
+  level:
+    root: WARN
+    dev.driftless: INFO
