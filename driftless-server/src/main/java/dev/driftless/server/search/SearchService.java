@@ -15,7 +15,8 @@ import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -33,19 +34,23 @@ public class SearchService {
     private final GenerationRepository generations;
     private final EmbeddingService embeddings;
     private final JdbcTemplate jdbc;
+    private final TransactionTemplate readOnly;
 
-    public SearchService(DriftlessProperties props, GenerationRepository generations, EmbeddingService embeddings, JdbcTemplate jdbc) {
+    public SearchService(DriftlessProperties props, GenerationRepository generations, EmbeddingService embeddings, JdbcTemplate jdbc,
+                         PlatformTransactionManager transactions) {
         this.props = props;
         this.generations = generations;
         this.embeddings = embeddings;
         this.jdbc = jdbc;
+        this.readOnly = new TransactionTemplate(transactions);
+        this.readOnly.setReadOnly(true);
     }
 
     /**
      * Nearest chunks of the live generation. pgvector filters after the HNSW scan, so a selective filter
      * would return fewer than k rows; iterative scan keeps scanning until k rows pass the filter.
+     * The query is embedded before any transaction opens, so a slow provider never holds a pooled connection.
      */
-    @Transactional(readOnly = true)
     public Result search(String pipeline, String query, int k, Map<String, Object> filter, String principal) {
         if (props.pipeline(pipeline) == null) {
             throw new NotFoundException("no pipeline " + pipeline);
@@ -54,8 +59,7 @@ public class SearchService {
 
         List<String> where = new ArrayList<>();
         List<Object> args = new ArrayList<>();
-        String vector = Vectors.toText(embeddings.embedQuery(g.embedding(), query));
-        args.add(vector);
+        args.add(null); // the query vector, filled in once the request is known to be valid
         (filter == null ? Map.<String, Object>of() : filter).forEach((col, value) -> {
             if (!g.metadataColumns().contains(col)) {
                 throw new ApiException(HttpStatus.BAD_REQUEST, "cannot filter on " + col + "; filterable columns: " + g.metadataColumns());
@@ -77,7 +81,11 @@ public class SearchService {
             args.add(JSON.writeValueAsString(Map.of(ACL, List.of(principal))));
         }
         args.add(k);
+        args.set(0, Vectors.toText(embeddings.embedQuery(g.embedding(), query)));
+        return readOnly.execute(tx -> query(g, where, args));
+    }
 
+    private Result query(Generation g, List<String> where, List<Object> args) {
         jdbc.execute("SET LOCAL hnsw.iterative_scan = relaxed_order");
         jdbc.execute("SET LOCAL hnsw.ef_search = 100");
         // relaxed_order can return slightly out of order; the outer ORDER BY fixes that

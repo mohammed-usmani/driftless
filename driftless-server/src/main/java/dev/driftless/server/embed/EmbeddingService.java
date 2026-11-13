@@ -91,8 +91,9 @@ public class EmbeddingService {
     }
 
     /** One query vector, not cached (queries rarely repeat and must not fill the cache). */
+    /** One attempt: a person is waiting, and the caller reports an outage faster than a retry loop would. */
     public float[] embedQuery(EmbeddingSpec spec, String query) {
-        return call(spec, List.of(query)).getFirst();
+        return call(spec, List.of(query), 1).getFirst();
     }
 
     public boolean circuitOpen(String provider) {
@@ -101,13 +102,17 @@ public class EmbeddingService {
     }
 
     private List<float[]> call(EmbeddingSpec spec, List<String> texts) {
+        return call(spec, texts, ATTEMPTS);
+    }
+
+    private List<float[]> call(EmbeddingSpec spec, List<String> texts, int attempts) {
         EmbeddingProvider provider = providers.get(spec.provider());
         if (provider == null) {
             throw new IllegalArgumentException("unknown embedding provider: " + spec.provider());
         }
         Breaker breaker = breakers.computeIfAbsent(spec.provider(), p -> new Breaker());
         ProviderUnavailableException last = null;
-        for (int attempt = 0; attempt < ATTEMPTS; attempt++) {
+        for (int attempt = 0; attempt < attempts; attempt++) {
             synchronized (breaker) {
                 if (clock.instant().isBefore(breaker.openUntil)) {
                     throw new ProviderUnavailableException(spec.provider() + " circuit open until " + breaker.openUntil, last);

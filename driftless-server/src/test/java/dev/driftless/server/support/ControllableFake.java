@@ -14,11 +14,15 @@ import org.springframework.context.annotation.Bean;
 public class ControllableFake implements EmbeddingProvider {
 
     public final AtomicInteger texts = new AtomicInteger();
+    public final AtomicInteger calls = new AtomicInteger();
+    public volatile Runnable onEmbed = () -> { };
     public volatile Instant downUntil = Instant.MIN;
     private final FakeProvider fake = new FakeProvider(0);
 
     @Override
     public List<float[]> embed(EmbeddingSpec spec, List<String> in) {
+        calls.incrementAndGet();
+        onEmbed.run();
         if (Instant.now().isBefore(downUntil)) {
             throw new ProviderUnavailableException("fake outage");
         }

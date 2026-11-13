@@ -3,19 +3,28 @@ package dev.driftless.server.search;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
+import dev.driftless.server.embed.EmbeddingProvider;
+import dev.driftless.server.embed.ProviderUnavailableException;
+import dev.driftless.server.support.ControllableFake;
 import dev.driftless.server.support.IntegrationTest;
 import dev.driftless.server.support.SourceDb;
 import java.time.Duration;
+import java.time.Instant;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.context.annotation.Import;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @TestPropertySource(properties = {
         "driftless.pipelines[0].name=sr_articles",
@@ -27,7 +36,11 @@ import org.springframework.test.context.TestPropertySource;
         "driftless.pipelines[0].embedding.model=fake-8",
         "driftless.pipelines[0].embedding.dimensions=8",
 })
+@Import(ControllableFake.Config.class)
 class SearchIT extends IntegrationTest {
+
+    @Autowired SearchService service;
+    @Autowired @Qualifier("fake") EmbeddingProvider provider;
 
     private static final String[] CATEGORIES = {"billing", "account", "other"};
 
@@ -115,6 +128,33 @@ class SearchIT extends IntegrationTest {
         assertThat(r.getStatusCode().value()).isEqualTo(400);
         assertThat(r.getBody()).containsKey("errors");
         assertThat(r.getBody().get("errors").toString()).contains("k");
+    }
+
+    @Test
+    void queryIsEmbeddedWithoutHoldingADatabaseConnection() {
+        ControllableFake fake = (ControllableFake) provider;
+        AtomicBoolean inTransaction = new AtomicBoolean();
+        fake.onEmbed = () -> inTransaction.set(TransactionSynchronizationManager.isActualTransactionActive());
+        try {
+            assertThat(service.search("sr_articles", "Reset a password", 3, null, null).results()).hasSize(3);
+        } finally {
+            fake.onEmbed = () -> { };
+        }
+        assertThat(inTransaction).as("a transaction (and its connection) was open during the provider call").isFalse();
+    }
+
+    @Test
+    void providerOutageFailsASearchAfterOneAttempt() {
+        ControllableFake fake = (ControllableFake) provider;
+        int before = fake.calls.get();
+        fake.downUntil = Instant.now().plusSeconds(60);
+        try {
+            org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.search("sr_articles", "q", 3, null, null))
+                    .isInstanceOf(ProviderUnavailableException.class);
+        } finally {
+            fake.downUntil = Instant.MIN;
+        }
+        assertThat(fake.calls.get() - before).as("provider attempts for one search").isEqualTo(1);
     }
 
     @Test
