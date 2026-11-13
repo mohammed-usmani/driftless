@@ -28,8 +28,11 @@ It then goes through the normal apply path: it becomes a delete with a tombstone
 
 **Grace re-check.** Every finding, not only leaks, is re-checked after `grace-seconds`. It stays in the
 report only if the source row is unchanged (the same document and metadata hash, or still absent) and the
-index still disagrees. A leak must also show the same `row_state` version both times. So a change still in
-flight is never reported as drift, and a row re-inserted during the check is never deleted.
+index still disagrees. A leak must also show the same `row_state` version both times. So a change that
+reaches the index within the window is never reported, and a row re-inserted during the check is never
+deleted. A change delayed longer than the window (a consumer backlog, a provider outage) can still be
+reported; its repair is harmless, because a snapshot re-reads the current row and the synthetic delete loses
+to anything newer, so the cost is a noisy report, not a wrong index.
 
 ## Consequences
 

@@ -113,8 +113,9 @@ A scheduled job compares source rows with the index's row state for the live gen
   re-insert committed meanwhile still wins ([ADR 5](docs/adr/0005-leak-repair-by-synthetic-delete.md)).
 
 Every finding is re-checked after a grace window, and it's reported only if the source is unchanged and
-the index still disagrees. A change still in flight is never reported as drift. Repair runs automatically
-or on request (`POST /v1/drift-reports/{id}/repair`).
+the index still disagrees. A change that reaches the index within that window is never reported. One delayed
+longer, by a consumer backlog or a provider outage, can be reported as drift. Repairing it does no harm, because
+the versioned apply drops whatever is older, so the cost is a noisy report. Repair runs automatically or on request (`POST /v1/drift-reports/{id}/repair`).
 
 The demo profile has chaos endpoints that corrupt and leak index rows on purpose, so you can watch this happen.
 
@@ -134,7 +135,9 @@ commit to the commit of the index transaction.
 the topic's partitions, which is what keeps them ordered. So while a local model works through the
 backfill, live changes queue behind it in both generations. In the migration run, 7,549 changes were
 queued when the new generation became `READY`, and the queue took 500 s to clear after writes stopped.
-Correctness held throughout, but freshness during that migration was minutes, not seconds. A faster
+Correctness held throughout, but freshness during that migration was minutes, not seconds, and that
+includes deletes and ACL revocations, which wait in the same queue. (When the provider is down rather than
+slow, they don't wait: changes that need no embedding are applied first.) A faster
 model or a hosted provider shortens this. Fixing it properly means either throttling the backfill or
 giving it a lower priority than live changes, and neither is built.
 
@@ -205,7 +208,7 @@ Search uses pgvector's iterative HNSW scan, so a selective tenant or ACL filter 
 
 ## Tests
 
-The suite has 159 tests: 74 unit tests (70 in the server, 4 in the load generator) and 85 integration tests. The integration tests run against Postgres, Kafka and Debezium in Testcontainers, with WireMock standing in for
+The suite has 169 tests: 75 unit tests (71 in the server, 4 in the load generator) and 94 integration tests. The integration tests run against Postgres, Kafka and Debezium in Testcontainers, with WireMock standing in for
 the embedding providers. The ones that carry the guarantees:
 
 - `VersionOrderingIT`: per-row versions are monotonic under concurrent transactions, snapshots and a connector restart.

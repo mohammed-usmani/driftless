@@ -31,8 +31,9 @@ import org.springframework.stereotype.Service;
 
 /**
  * Samples the source and the live index and reports rows that disagree. A finding is reported only if it
- * still holds after the grace window and the source row didn't change in between, so changes still in flight
- * through Debezium are never reported as drift.
+ * still holds after the grace window and the source row didn't change in between, so a change that reaches the
+ * index within the window is never reported. One delayed longer (a consumer backlog, a provider outage) can be;
+ * repairing it is harmless, since the versioned apply drops whatever is older.
  */
 @Service
 public class Reconciler {
