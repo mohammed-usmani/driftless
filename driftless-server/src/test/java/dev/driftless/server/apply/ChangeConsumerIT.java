@@ -160,6 +160,26 @@ class ChangeConsumerIT extends IntegrationTest {
     }
 
     @Test
+    void providerOutageStillAppliesDeletesAndAclChanges() {
+        long revoked = insert("cc_articles", "Revoked", "x");
+        long deleted = insert("cc_articles", "Deleted", "y");
+        await().atMost(WAIT).until(() -> chunks("cc_articles", revoked) == 1 && chunks("cc_articles", deleted) == 1);
+        fake.downUntil = Instant.now().plusSeconds(120);
+        try {
+            long waiting = insert("cc_articles", "Needs an embedding", "z");
+            sourceJdbc().update("UPDATE cc_articles SET acl = ARRAY['u9'] WHERE id = ?", revoked);
+            sourceJdbc().update("DELETE FROM cc_articles WHERE id = ?", deleted);
+            await().atMost(Duration.ofSeconds(45)).until(() -> chunks("cc_articles", deleted) == 0 && "u9".equals(jdbc.queryForObject(
+                    "SELECT metadata->'acl'->>0 FROM " + chunkTable("cc_articles") + " WHERE row_key = ?", String.class, Long.toString(revoked))));
+            assertThat(chunks("cc_articles", waiting)).isZero();
+            fake.downUntil = Instant.MIN;
+            await().atMost(WAIT).until(() -> chunks("cc_articles", waiting) == 1);
+        } finally {
+            fake.downUntil = Instant.MIN;
+        }
+    }
+
+    @Test
     void droppedTemplateColumnBecomesFailedChange() {
         sourceJdbc().execute("ALTER TABLE cc_other DROP COLUMN body");
         long k = ++id;

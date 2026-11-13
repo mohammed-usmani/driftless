@@ -5,6 +5,7 @@ import dev.driftless.server.change.Op;
 import dev.driftless.server.embed.EmbedResult;
 import dev.driftless.server.embed.EmbeddingService;
 import dev.driftless.server.embed.EmbeddingSpec;
+import dev.driftless.server.embed.ProviderUnavailableException;
 import dev.driftless.server.generation.Generation;
 import dev.driftless.server.generation.GenerationRepository;
 import dev.driftless.server.generation.RowStateRepository;
@@ -98,27 +99,17 @@ public class ChangeProcessor {
                 .forEach(w -> byModel.computeIfAbsent(w.generation().embedding(), s -> new ArrayList<>()).add(w));
         Map<Work, List<float[]>> vectors = new java.util.IdentityHashMap<>();
         Map<Work, int[]> counts = new java.util.IdentityHashMap<>();
-        byModel.forEach((spec, ws) -> {
-            List<String> chunks = new ArrayList<>();
-            ws.forEach(w -> chunks.addAll(w.prepared().chunks()));
-            EmbedResult r = embeddings.embed(spec, chunks);
-            long missedChars = 0;
-            for (int i = 0; i < chunks.size(); i++) {
-                missedChars += r.cached()[i] ? 0 : chunks.get(i).length();
-            }
-            metrics.embedded(ws.getFirst().event().pipeline(), spec.model(), r.cacheHits(), r.embedded(), r.providerCalls(), missedChars);
-            int at = 0;
-            for (Work w : ws) {
-                int n = w.prepared().chunks().size();
-                vectors.put(w, r.vectors().subList(at, at + n));
-                int hits = 0;
-                for (int i = at; i < at + n; i++) {
-                    hits += r.cached()[i] ? 1 : 0;
+        try {
+            byModel.forEach((spec, ws) -> embed(spec, ws, vectors, counts));
+        } catch (ProviderUnavailableException e) {
+            // the batch will be redelivered; meanwhile deletes and ACL changes must not wait for the provider
+            for (Work w : work) {
+                if (w.expected() != Outcome.EMBED) {
+                    applier.apply(w.generation(), w.event(), w.prepared(), null);
                 }
-                counts.put(w, new int[] {n - hits, hits});
-                at += n;
             }
-        });
+            throw e;
+        }
 
         List<Applied> out = new ArrayList<>();
         Map<ChangeEvent, String> failures = new LinkedHashMap<>();
@@ -142,6 +133,28 @@ public class ChangeProcessor {
             failed.resolve(events.getFirst().pipeline(), succeeded);
         }
         return out;
+    }
+
+    private void embed(EmbeddingSpec spec, List<Work> ws, Map<Work, List<float[]>> vectors, Map<Work, int[]> counts) {
+        List<String> chunks = new ArrayList<>();
+        ws.forEach(w -> chunks.addAll(w.prepared().chunks()));
+        EmbedResult r = embeddings.embed(spec, chunks);
+        long missedChars = 0;
+        for (int i = 0; i < chunks.size(); i++) {
+            missedChars += r.cached()[i] ? 0 : chunks.get(i).length();
+        }
+        metrics.embedded(ws.getFirst().event().pipeline(), spec.model(), r.cacheHits(), r.embedded(), r.providerCalls(), missedChars);
+        int at = 0;
+        for (Work w : ws) {
+            int n = w.prepared().chunks().size();
+            vectors.put(w, r.vectors().subList(at, at + n));
+            int hits = 0;
+            for (int i = at; i < at + n; i++) {
+                hits += r.cached()[i] ? 1 : 0;
+            }
+            counts.put(w, new int[] {n - hits, hits});
+            at += n;
+        }
     }
 
     private Applied applied(Generation g, ChangeEvent e, Outcome o, int embedded, int hits) {
