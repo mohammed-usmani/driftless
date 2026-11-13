@@ -156,7 +156,8 @@ class ChangeConsumerIT extends IntegrationTest {
         long a = insert("cc_articles", "During outage A", "x");
         long b = insert("cc_articles", "During outage B", "y");
         await().atMost(Duration.ofSeconds(90)).until(() -> chunks("cc_articles", a) == 1 && chunks("cc_articles", b) == 1);
-        assertThat(jdbc.queryForObject("SELECT count(*) FROM failed_change WHERE pipeline = 'cc_articles'", Long.class)).isZero();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM failed_change WHERE pipeline = 'cc_articles' AND row_key IN (?, ?)", Long.class,
+                Long.toString(a), Long.toString(b))).isZero();
     }
 
     @Test
@@ -177,6 +178,17 @@ class ChangeConsumerIT extends IntegrationTest {
         } finally {
             fake.downUntil = Instant.MIN;
         }
+    }
+
+    @Test
+    void rowTheProviderRejectsBecomesAFailedChangeAndTheRestApply() {
+        long rejected = insert("cc_articles", "PROVIDER-REJECTS this one", "x");
+        long fine = insert("cc_articles", "An ordinary row", "y");
+        await().atMost(WAIT).until(() -> chunks("cc_articles", fine) == 1);
+        await().atMost(WAIT).until(() -> jdbc.queryForObject(
+                "SELECT count(*) FROM failed_change WHERE pipeline = 'cc_articles' AND row_key = ? AND reason LIKE '%rejected%'",
+                Long.class, Long.toString(rejected)) == 1);
+        assertThat(chunks("cc_articles", rejected)).isZero();
     }
 
     @Test

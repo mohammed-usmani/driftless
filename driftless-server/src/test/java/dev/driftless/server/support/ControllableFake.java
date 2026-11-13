@@ -23,6 +23,9 @@ public class ControllableFake implements EmbeddingProvider {
     public List<float[]> embed(EmbeddingSpec spec, List<String> in) {
         calls.incrementAndGet();
         onEmbed.run();
+        if (in.stream().anyMatch(t -> t.contains("PROVIDER-REJECTS"))) {
+            throw new IllegalArgumentException("fake 400: input rejected");
+        }
         if (Instant.now().isBefore(downUntil)) {
             throw new ProviderUnavailableException("fake outage");
         }

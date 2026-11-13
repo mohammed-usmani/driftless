@@ -25,7 +25,8 @@ final class HttpProviders {
             return request.get();
         } catch (HttpStatusCodeException e) {
             int status = e.getStatusCode().value();
-            if (status == 429 || status >= 500) {
+            // 401/403 is a key or permission problem for every row, not this one: wait for it to be fixed
+            if (status == 429 || status >= 500 || status == 401 || status == 403) {
                 throw new ProviderUnavailableException(provider + " returned " + status, e);
             }
             throw new IllegalArgumentException(provider + " returned " + status + ": " + e.getResponseBodyAsString(), e);

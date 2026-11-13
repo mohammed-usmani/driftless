@@ -99,8 +99,23 @@ public class ChangeProcessor {
                 .forEach(w -> byModel.computeIfAbsent(w.generation().embedding(), s -> new ArrayList<>()).add(w));
         Map<Work, List<float[]>> vectors = new java.util.IdentityHashMap<>();
         Map<Work, int[]> counts = new java.util.IdentityHashMap<>();
+        Map<Work, String> rejected = new java.util.IdentityHashMap<>();
         try {
-            byModel.forEach((spec, ws) -> embed(spec, ws, vectors, counts));
+            byModel.forEach((spec, ws) -> {
+                try {
+                    embed(spec, ws, vectors, counts);
+                } catch (IllegalArgumentException batchRejected) {
+                    // the provider refused something in the batch and retrying won't help: find the rows it refuses
+                    // ponytail: one call per row after a rejection; bisect if rejections become common
+                    for (Work w : ws) {
+                        try {
+                            embed(spec, List.of(w), vectors, counts);
+                        } catch (IllegalArgumentException e) {
+                            rejected.put(w, e.getMessage());
+                        }
+                    }
+                }
+            });
         } catch (ProviderUnavailableException e) {
             // the batch will be redelivered; meanwhile deletes and ACL changes must not wait for the provider
             for (Work w : work) {
@@ -114,6 +129,11 @@ public class ChangeProcessor {
         List<Applied> out = new ArrayList<>();
         Map<ChangeEvent, String> failures = new LinkedHashMap<>();
         for (Work w : work) {
+            if (rejected.containsKey(w)) {
+                out.add(applied(w.generation(), w.event(), Outcome.FAILED, 0, 0));
+                failures.putIfAbsent(w.event(), rejected.get(w));
+                continue;
+            }
             Outcome o = applier.apply(w.generation(), w.event(), w.prepared(), vectors.get(w));
             int[] c = o == Outcome.EMBED ? counts.getOrDefault(w, new int[2]) : new int[2];
             out.add(applied(w.generation(), w.event(), o, c[0], c[1]));
