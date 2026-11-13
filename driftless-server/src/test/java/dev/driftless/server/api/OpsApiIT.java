@@ -88,6 +88,7 @@ class OpsApiIT extends IntegrationTest {
         assertThat((Map<String, Object>) p.get("freshness")).containsKeys("p50Ms", "p99Ms");
         assertThat(((Number) ((Map<String, Object>) p.get("outcomes")).get("EMBED")).intValue()).isGreaterThanOrEqualTo(12);
         assertThat(p).containsKey("migration");
+        assertThat(p).as("the connector's state, so a failed Debezium task is visible").containsEntry("connector", "RUNNING");
         assertThat(object("GET", "/v1/pipelines/nope", 404)).containsEntry("status", 404);
     }
 

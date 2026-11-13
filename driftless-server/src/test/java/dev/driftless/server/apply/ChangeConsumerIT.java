@@ -41,6 +41,7 @@ class ChangeConsumerIT extends IntegrationTest {
 
     @Autowired GenerationRepository generations;
     @Autowired dev.driftless.server.source.KafkaOffsets offsets;
+    @Autowired dev.driftless.server.source.ConnectorManager connectors;
     @Autowired @org.springframework.beans.factory.annotation.Qualifier("fake") dev.driftless.server.embed.EmbeddingProvider provider;
     ControllableFake fake;
 
@@ -189,6 +190,19 @@ class ChangeConsumerIT extends IntegrationTest {
                 "SELECT count(*) FROM failed_change WHERE pipeline = 'cc_articles' AND row_key = ? AND reason LIKE '%rejected%'",
                 Long.class, Long.toString(rejected)) == 1);
         assertThat(chunks("cc_articles", rejected)).isZero();
+    }
+
+    @Test
+    void rowOverAMegabyteIsIndexedAndTheStreamKeepsFlowing() {
+        // Kafka's default 1 MB record limit; an update carries the before image too (REPLICA IDENTITY FULL), so double it
+        String body = "large ".repeat(250_000);
+        long big = insert("cc_articles", "Large", body);
+        sourceJdbc().update("UPDATE cc_articles SET title = 'Large, edited' WHERE id = ?", big);
+        long after = insert("cc_articles", "After the large row", "z");
+        await().atMost(Duration.ofSeconds(120)).until(() -> chunks("cc_articles", after) == 1 && jdbc.queryForObject(
+                "SELECT count(*) FROM " + chunkTable("cc_articles") + " WHERE row_key = ? AND text LIKE 'Large, edited%'", Long.class,
+                Long.toString(big)) == 1);
+        assertThat(connectors.state("cc_articles")).isEqualTo(dev.driftless.server.source.ConnectorManager.State.RUNNING);
     }
 
     @Test

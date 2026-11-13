@@ -17,6 +17,8 @@ public class ConnectorManager {
 
     public enum State { RUNNING, STARTING, FAILED, MISSING }
 
+    static final int MAX_RECORD_BYTES = 16 * 1024 * 1024;
+
     private final RestClient connect;
     private final SourceDatabase.Source source;
     private final DriftlessProperties props;
@@ -119,6 +121,10 @@ public class ConnectorManager {
         c.put("notification.sink.topic.name", notificationTopic(p));
         c.put("topic.creation.default.partitions", "6");
         c.put("topic.creation.default.replication.factor", "1");
+        // Kafka refuses records over 1 MB by default, and Debezium fails its task on one; with REPLICA IDENTITY FULL an update
+        // carries the row twice. Raise the producer and topic limits here so no broker or worker setting is needed.
+        c.put("producer.override.max.request.size", Integer.toString(MAX_RECORD_BYTES));
+        c.put("topic.creation.default.max.message.bytes", Integer.toString(MAX_RECORD_BYTES));
         c.put("key.converter", "org.apache.kafka.connect.json.JsonConverter");
         c.put("key.converter.schemas.enable", "false");
         c.put("value.converter", "org.apache.kafka.connect.json.JsonConverter");

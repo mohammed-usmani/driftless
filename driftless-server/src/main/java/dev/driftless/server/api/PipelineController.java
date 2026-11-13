@@ -6,6 +6,7 @@ import dev.driftless.server.generation.ChunkStore;
 import dev.driftless.server.generation.Generation;
 import dev.driftless.server.generation.GenerationRepository;
 import dev.driftless.server.generation.MigrationService;
+import dev.driftless.server.source.ConnectorManager;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -23,9 +24,12 @@ class PipelineController {
     private final DriftlessProperties props;
     private final GenerationRepository generations;
     private final MigrationService migrations;
+    private final ConnectorManager connectors;
     private final JdbcTemplate jdbc;
 
-    PipelineController(DriftlessProperties props, GenerationRepository generations, MigrationService migrations, JdbcTemplate jdbc) {
+    PipelineController(DriftlessProperties props, GenerationRepository generations, MigrationService migrations,
+                       ConnectorManager connectors, JdbcTemplate jdbc) {
+        this.connectors = connectors;
         this.props = props;
         this.generations = generations;
         this.migrations = migrations;
@@ -88,6 +92,15 @@ class PipelineController {
                 FROM snapshot_request WHERE pipeline = ? ORDER BY id DESC LIMIT 100""", name);
     }
 
+    /** RUNNING, STARTING, FAILED or MISSING; a FAILED task means no changes are flowing and the slot is retaining WAL. */
+    private String connectorState(String pipeline) {
+        try {
+            return connectors.state(pipeline).name();
+        } catch (RuntimeException e) {
+            return "UNREACHABLE";
+        }
+    }
+
     private Map<String, Object> summary(PipelineConfig p) {
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("name", p.name());
@@ -96,6 +109,7 @@ class PipelineController {
                 "SELECT status, blocked_reason, embeds_saved FROM pipeline WHERE name = ?", p.name());
         out.put("status", row.isEmpty() ? null : row.getFirst().get("status"));
         out.put("blockedReason", row.isEmpty() ? null : row.getFirst().get("blocked_reason"));
+        out.put("connector", connectorState(p.name()));
         Optional<Generation> live = generations.live(p.name());
         out.put("liveGeneration", live.map(Generation::number).orElse(null));
         // how far behind the source the newest applied change was

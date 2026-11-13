@@ -22,7 +22,10 @@ spring:
       key-deserializer: org.apache.kafka.common.serialization.ByteArrayDeserializer
       value-deserializer: org.apache.kafka.common.serialization.ByteArrayDeserializer
       properties:
-        # topics are matched by pattern; a new pipeline's topic is noticed on the next metadata refresh
+        # Debezium creates the change topics (6 partitions, 16 MB records); a consumer that created one first would
+        # get broker defaults (1 partition, 1 MB) and the first large row would stop the connector
+        allow.auto.create.topics: false
+        # a topic Debezium creates after the consumer starts is picked up on the next metadata refresh
         metadata.max.age.ms: 5000
         # only bounds processing time between polls; a dead consumer is still caught by heartbeats within seconds
         max.poll.interval.ms: 1800000
