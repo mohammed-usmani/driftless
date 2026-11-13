@@ -16,15 +16,23 @@ class RowKeysTest {
     }
 
     @Test
-    void uuidsRenderLowercaseFromStringsOrUuids() {
+    void uuidsRenderAsPostgresWritesThem() {
         UUID u = UUID.fromString("0f8fad5b-d9cb-469f-a165-70867728950e");
-        assertThat(RowKeys.of(u.toString().toUpperCase())).isEqualTo(u.toString());
-        assertThat(RowKeys.of(u)).isEqualTo(u.toString());
+        assertThat(RowKeys.of(u)).isEqualTo("0f8fad5b-d9cb-469f-a165-70867728950e");
     }
 
     @Test
-    void textKeysKeepTheirCase() {
+    void textKeysKeepTheirCaseEvenWhenShapedLikeAUuid() {
         assertThat(RowKeys.of("Order-A")).isEqualTo("Order-A");
+        // a text key, not a uuid column: the source matches it case-sensitively, so must we
+        assertThat(RowKeys.of("6F9619FF-8B86-D011-B42D-00C04FC964FF")).isEqualTo("6F9619FF-8B86-D011-B42D-00C04FC964FF");
+    }
+
+    @Test
+    void numericKeysKeepTheirScaleAsDebeziumSendsIt() {
+        // decimal.handling.mode=string sends "12.50" for numeric(10,2); JDBC returns BigDecimal 12.50
+        assertThat(RowKeys.of(new BigDecimal("12.50"))).isEqualTo("12.50");
+        assertThat(RowKeys.of("12.50")).isEqualTo("12.50");
     }
 
     @Test

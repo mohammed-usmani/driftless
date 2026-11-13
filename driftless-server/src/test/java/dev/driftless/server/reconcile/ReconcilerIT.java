@@ -48,6 +48,20 @@ import org.springframework.test.context.TestPropertySource;
         "driftless.pipelines[2].embedding.provider=fake",
         "driftless.pipelines[2].embedding.model=fake-8",
         "driftless.pipelines[2].embedding.dimensions=8",
+        "driftless.pipelines[3].name=rc_decimal",
+        "driftless.pipelines[3].table=public.rc_decimal",
+        "driftless.pipelines[3].key=id",
+        "driftless.pipelines[3].text={title}",
+        "driftless.pipelines[3].embedding.provider=fake",
+        "driftless.pipelines[3].embedding.model=fake-8",
+        "driftless.pipelines[3].embedding.dimensions=8",
+        "driftless.pipelines[4].name=rc_guid",
+        "driftless.pipelines[4].table=public.rc_guid",
+        "driftless.pipelines[4].key=id",
+        "driftless.pipelines[4].text={title}",
+        "driftless.pipelines[4].embedding.provider=fake",
+        "driftless.pipelines[4].embedding.model=fake-8",
+        "driftless.pipelines[4].embedding.dimensions=8",
 })
 class ReconcilerIT extends IntegrationTest {
 
@@ -59,6 +73,16 @@ class ReconcilerIT extends IntegrationTest {
         SourceDb.createArticles(sourceJdbc(), "rc_articles");
         SourceDb.create(sourceJdbc(), "rc_uuid", "uuid", "");
         SourceDb.create(sourceJdbc(), "rc_priced", "bigint", ", price numeric(10,2)");
+        SourceDb.create(sourceJdbc(), "rc_decimal", "numeric(10,2)", "");
+        SourceDb.create(sourceJdbc(), "rc_guid", "text", "");
+        List<Object[]> decimals = new ArrayList<>();
+        List<Object[]> guids = new ArrayList<>();
+        for (int i = 0; i < 50; i++) {
+            decimals.add(new Object[] {new java.math.BigDecimal(i + ".50"), "Decimal " + i});
+            guids.add(new Object[] {UUID.randomUUID().toString().toUpperCase(java.util.Locale.ROOT), "Guid " + i});
+        }
+        sourceJdbc().batchUpdate("INSERT INTO rc_decimal (id, title) VALUES (?, ?)", decimals);
+        sourceJdbc().batchUpdate("INSERT INTO rc_guid (id, title) VALUES (?, ?)", guids);
         List<Object[]> rows = new ArrayList<>();
         List<Object[]> uuids = new ArrayList<>();
         List<Object[]> priced = new ArrayList<>();
@@ -81,7 +105,8 @@ class ReconcilerIT extends IntegrationTest {
 
     @BeforeEach
     void backfilled() {
-        await().atMost(Duration.ofMinutes(3)).until(() -> live("rc_uuid") == 100 && live("rc_priced") == 100 && live("rc_articles") >= 300);
+        await().atMost(Duration.ofMinutes(3)).until(() -> live("rc_uuid") == 100 && live("rc_priced") == 100 && live("rc_articles") >= 300
+                && live("rc_decimal") == 50 && live("rc_guid") == 50);
     }
 
     private void chaos(String pipeline, String kind, int count) {
@@ -147,6 +172,20 @@ class ReconcilerIT extends IntegrationTest {
     void uuidKeyTableHasNoFalseDrift() {
         DriftReport r = reconciler.run("rc_uuid");
         assertThat(r.sampledSource()).isEqualTo(100);
+        assertThat(drift(r)).isZero();
+    }
+
+    @Test
+    void numericKeyWithScaleHasNoFalseDrift() {
+        DriftReport r = reconciler.run("rc_decimal");
+        assertThat(r.sampledSource()).isEqualTo(50);
+        assertThat(drift(r)).isZero();
+    }
+
+    @Test
+    void uppercaseTextKeyShapedLikeAUuidHasNoFalseDrift() {
+        DriftReport r = reconciler.run("rc_guid");
+        assertThat(r.sampledSource()).isEqualTo(50);
         assertThat(drift(r)).isZero();
     }
 
