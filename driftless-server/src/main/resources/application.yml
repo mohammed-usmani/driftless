@@ -16,12 +16,16 @@ spring:
     consumer:
       auto-offset-reset: earliest
       enable-auto-commit: false
-      max-poll-records: 500
+      # a batch is processed before the next poll; 100 records keeps that well inside max.poll.interval.ms even when
+      # every record needs a slow local model shared by all consumers (500 livelocked a migration to mxbai-embed-large)
+      max-poll-records: 100
       key-deserializer: org.apache.kafka.common.serialization.ByteArrayDeserializer
       value-deserializer: org.apache.kafka.common.serialization.ByteArrayDeserializer
       properties:
         # topics are matched by pattern; a new pipeline's topic is noticed on the next metadata refresh
         metadata.max.age.ms: 5000
+        # only bounds processing time between polls; a dead consumer is still caught by heartbeats within seconds
+        max.poll.interval.ms: 1800000
     producer:
       key-serializer: org.apache.kafka.common.serialization.ByteArraySerializer
       value-serializer: org.apache.kafka.common.serialization.ByteArraySerializer

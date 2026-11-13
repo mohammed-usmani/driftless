@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
+import jakarta.annotation.PreDestroy;
 import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.admin.OffsetSpec;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
@@ -18,6 +19,7 @@ public class KafkaOffsets {
 
     private final KafkaAdmin kafkaAdmin;
     private final String group;
+    private volatile Admin admin;
 
     public KafkaOffsets(KafkaAdmin kafkaAdmin, @Value("${driftless.consumer-group:driftless}") String group) {
         this.kafkaAdmin = kafkaAdmin;
@@ -25,12 +27,12 @@ public class KafkaOffsets {
     }
 
     public Map<Integer, Long> end(String topic) {
-        try (Admin admin = Admin.create(kafkaAdmin.getConfigurationProperties())) {
-            var partitions = admin.describeTopics(List.of(topic)).allTopicNames().get().get(topic).partitions();
+        try {
+            var partitions = admin().describeTopics(List.of(topic)).allTopicNames().get().get(topic).partitions();
             Map<TopicPartition, OffsetSpec> request = new HashMap<>();
             partitions.forEach(pi -> request.put(new TopicPartition(topic, pi.partition()), OffsetSpec.latest()));
             Map<Integer, Long> out = new HashMap<>();
-            admin.listOffsets(request).all().get().forEach((tp, info) -> out.put(tp.partition(), info.offset()));
+            admin().listOffsets(request).all().get().forEach((tp, info) -> out.put(tp.partition(), info.offset()));
             return out;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -41,8 +43,8 @@ public class KafkaOffsets {
     }
 
     public Map<Integer, Long> committed(String topic) {
-        try (Admin admin = Admin.create(kafkaAdmin.getConfigurationProperties())) {
-            Map<TopicPartition, OffsetAndMetadata> all = admin.listConsumerGroupOffsets(group).partitionsToOffsetAndMetadata().get();
+        try {
+            Map<TopicPartition, OffsetAndMetadata> all = admin().listConsumerGroupOffsets(group).partitionsToOffsetAndMetadata().get();
             Map<Integer, Long> out = new HashMap<>();
             all.forEach((tp, om) -> {
                 if (tp.topic().equals(topic) && om != null) {
@@ -55,6 +57,27 @@ public class KafkaOffsets {
             throw new IllegalStateException(e);
         } catch (ExecutionException e) {
             throw new IllegalStateException("could not read offsets of group " + group, e.getCause());
+        }
+    }
+
+    // one client for the bean's lifetime: creating one per call logs its whole config every time
+    private Admin admin() {
+        Admin a = admin;
+        if (a == null) {
+            synchronized (this) {
+                if (admin == null) {
+                    admin = Admin.create(kafkaAdmin.getConfigurationProperties());
+                }
+                a = admin;
+            }
+        }
+        return a;
+    }
+
+    @PreDestroy
+    void close() {
+        if (admin != null) {
+            admin.close();
         }
     }
 

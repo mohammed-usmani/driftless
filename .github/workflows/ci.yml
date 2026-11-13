@@ -23,3 +23,5 @@ jobs:
         with:
           name: test-reports
           path: "**/target/*-reports/"
+      - name: Build image
+        run: docker build -f driftless-server/Dockerfile -t driftless-server:ci .

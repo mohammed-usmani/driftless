@@ -1,6 +1,6 @@
 """Fetch the demo dataset: Ask Ubuntu questions with their accepted answers, as JSON lines.
 
-Content is from Ask Ubuntu (https://askubuntu.com), licensed CC BY-SA 4.0; each line keeps the
+Content is from Ask Ubuntu (https://askubuntu.com), licensed CC BY-SA (2.5, 3.0 or 4.0 by post date); each line keeps the
 question link for attribution. Uses the public Stack Exchange API (about 100 requests, well inside
 the anonymous daily quota). Standard library only.
 """

@@ -1,0 +1,107 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1320 490" font-family="system-ui, -apple-system, Segoe UI, sans-serif" font-size="13" fill="#1f2433">
+  <title>Driftless architecture</title>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" fill="#4a5168"/>
+    </marker>
+    <marker id="r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" fill="#b5651d"/>
+    </marker>
+    <style>
+      .box{fill:#fff;stroke:#c9cedb;stroke-width:1.2}
+      .core{fill:#f3f5fb;stroke:#2f3f9e;stroke-width:1.4}
+      .t{font-weight:600;font-size:14px}
+      .s{fill:#5b6275;font-size:11.5px}
+      .l{fill:#4a5168;font-size:11.5px}
+      .ln{stroke:#4a5168;stroke-width:1.4;fill:none}
+      .rt{stroke:#b5651d;stroke-width:1.4;fill:none;stroke-dasharray:5 4}
+      .rl{fill:#b5651d;font-size:11.5px}
+    </style>
+  </defs>
+
+  <!-- main path -->
+  <rect class="box" x="20" y="110" width="120" height="84" rx="8"/>
+  <text class="t" x="80" y="146" text-anchor="middle">Your app</text>
+  <text class="s" x="80" y="166" text-anchor="middle">plain SQL writes</text>
+
+  <rect class="box" x="166" y="100" width="170" height="104" rx="8"/>
+  <text class="t" x="251" y="128" text-anchor="middle">Source Postgres</text>
+  <text class="s" x="251" y="149" text-anchor="middle">wal_level=logical</text>
+  <text class="s" x="251" y="166" text-anchor="middle">publication + signal table</text>
+  <text class="s" x="251" y="186" text-anchor="middle">REPLICA IDENTITY FULL</text>
+
+  <rect class="box" x="362" y="110" width="160" height="84" rx="8"/>
+  <text class="t" x="442" y="140" text-anchor="middle">Debezium</text>
+  <text class="s" x="442" y="160" text-anchor="middle">Kafka Connect, pgoutput</text>
+  <text class="s" x="442" y="177" text-anchor="middle">one connector per pipeline</text>
+
+  <rect class="box" x="548" y="110" width="150" height="84" rx="8"/>
+  <text class="t" x="623" y="140" text-anchor="middle">Kafka</text>
+  <text class="s" x="623" y="160" text-anchor="middle">topic per table</text>
+  <text class="s" x="623" y="177" text-anchor="middle">keyed by row, 6 partitions</text>
+
+  <rect class="core" x="724" y="100" width="206" height="104" rx="8"/>
+  <text class="t" x="827" y="128" text-anchor="middle">Driftless workers</text>
+  <text class="s" x="827" y="149" text-anchor="middle">2 instances, one consumer group</text>
+  <text class="s" x="827" y="166" text-anchor="middle">coalesce, render, hash, chunk</text>
+  <text class="s" x="827" y="186" text-anchor="middle">versioned apply per row</text>
+
+  <rect class="box" x="956" y="100" width="200" height="104" rx="8"/>
+  <text class="t" x="1056" y="128" text-anchor="middle">Index Postgres</text>
+  <text class="s" x="1056" y="149" text-anchor="middle">pgvector, HNSW + GIN</text>
+  <text class="s" x="1056" y="166" text-anchor="middle">row_state: version, hashes,</text>
+  <text class="s" x="1056" y="183" text-anchor="middle">tombstones; embedding cache</text>
+
+  <rect class="core" x="1182" y="110" width="123" height="84" rx="8"/>
+  <text class="t" x="1243" y="140" text-anchor="middle">Search API</text>
+  <text class="s" x="1243" y="160" text-anchor="middle">LIVE generation</text>
+  <text class="s" x="1243" y="177" text-anchor="middle">filters, ACL</text>
+
+  <path class="ln" d="M140 152H162" marker-end="url(#a)"/>
+  <path class="ln" d="M336 152H358" marker-end="url(#a)"/>
+  <path class="ln" d="M522 152H544" marker-end="url(#a)"/>
+  <path class="ln" d="M698 152H720" marker-end="url(#a)"/>
+  <path class="ln" d="M930 152H952" marker-end="url(#a)"/>
+  <path class="ln" d="M1156 152H1178" marker-end="url(#a)"/>
+  <text class="l" x="251" y="86" text-anchor="middle">WAL, logical replication</text>
+  <text class="l" x="827" y="86" text-anchor="middle">offsets committed after apply</text>
+
+  <!-- embedding -->
+  <rect class="box" x="724" y="250" width="206" height="112" rx="8"/>
+  <text class="t" x="740" y="276">Embedding provider</text>
+  <text class="s" x="740" y="298">Ollama, OpenAI or fake</text>
+  <text class="s" x="740" y="318">only cache misses, batched</text>
+  <text class="s" x="740" y="338">called before any row lock</text>
+  <text class="s" x="740" y="354">retry, backoff, circuit breaker</text>
+  <path class="ln" d="M827 204V246" marker-end="url(#a)" marker-start="url(#a)"/>
+
+  <!-- generations -->
+  <rect class="box" x="956" y="250" width="349" height="112" rx="8"/>
+  <text class="t" x="972" y="276">A table per generation (model, dims, chunking)</text>
+  <text class="s" x="972" y="298">chunks_articles_g1  LIVE, search reads it</text>
+  <text class="s" x="972" y="318">chunks_articles_g2  BUILDING, backfilled and dual-written</text>
+  <text class="s" x="972" y="338">READY once the consumer passes the snapshot's end;</text>
+  <text class="s" x="972" y="354">cutover and rollback are one transaction</text>
+  <path class="ln" d="M1056 204V246" marker-end="url(#a)"/>
+
+  <!-- reconciler -->
+  <rect class="box" x="362" y="250" width="336" height="112" rx="8"/>
+  <text class="t" x="378" y="276">Reconciler (ShedLock)</text>
+  <text class="s" x="378" y="298">compares source rows with row_state, both ways</text>
+  <text class="s" x="378" y="318">re-checks every finding after a grace window</text>
+  <text class="s" x="378" y="338">stale rows: incremental snapshot of their keys</text>
+  <text class="s" x="378" y="354">leaks: synthetic delete, same key, same partition</text>
+  <path class="rt" d="M420 250V226H251V208" marker-end="url(#r)"/>
+  <text class="rl" x="258" y="240">snapshot signal</text>
+  <path class="rt" d="M623 250V198" marker-end="url(#r)"/>
+  <text class="rl" x="631" y="230">synthetic delete</text>
+
+  <!-- bottom -->
+  <rect class="box" x="20" y="400" width="550" height="68" rx="8"/>
+  <text class="t" x="36" y="426">Observability</text>
+  <text class="s" x="36" y="448">Prometheus (freshness histogram, outcomes, cache hits, lag, migration progress), Grafana</text>
+
+  <rect class="box" x="610" y="400" width="695" height="68" rx="8"/>
+  <text class="t" x="626" y="426">Guarantees</text>
+  <text class="s" x="626" y="448">per-row order by version; deletes are tombstoned and never resurrected; unchanged chunks never re-embedded</text>
+</svg>

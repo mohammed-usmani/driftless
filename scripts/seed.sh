@@ -9,7 +9,7 @@ API=http://localhost:8180
 DATA=ops/demo-data/askubuntu.jsonl
 
 if [[ ! -s $DATA ]]; then
-  echo "== fetching the Ask Ubuntu dataset (CC BY-SA 4.0)"
+  echo "== fetching the Ask Ubuntu dataset (CC BY-SA)"
   ./ops/demo-data/fetch.sh --count "$COUNT"
 fi
 if [[ ! -f driftless-loadgen/target/driftless-loadgen.jar ]]; then

@@ -15,7 +15,7 @@ driftless:
       text: "{title}\n\n{body}"
       metadata: [category, tenant_id, acl]
       embedding:
-        provider: ollama
+        provider: ${ARTICLES_EMBED_PROVIDER:ollama}
         model: ${ARTICLES_EMBED_MODEL:nomic-embed-text}
         dimensions: ${ARTICLES_EMBED_DIMS:768}
       chunking:
