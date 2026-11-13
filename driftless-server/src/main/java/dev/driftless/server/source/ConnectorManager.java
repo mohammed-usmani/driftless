@@ -35,6 +35,11 @@ public class ConnectorManager {
         return "driftless." + p.name() + "." + p.schema() + "." + p.tableName();
     }
 
+    /** The change topics of the pipelines this instance runs; the consumer subscribes to exactly these. */
+    public String[] changeTopics() {
+        return props.pipelines().stream().map(this::topic).toArray(String[]::new);
+    }
+
     public String notificationTopic(PipelineConfig p) {
         return "driftless." + p.name() + ".notifications";
     }

@@ -40,6 +40,7 @@ class ChangeConsumerIT extends IntegrationTest {
     private static final Duration WAIT = Duration.ofSeconds(60);
 
     @Autowired GenerationRepository generations;
+    @Autowired dev.driftless.server.source.KafkaOffsets offsets;
     @Autowired @org.springframework.beans.factory.annotation.Qualifier("fake") dev.driftless.server.embed.EmbeddingProvider provider;
     ControllableFake fake;
 
@@ -77,6 +78,22 @@ class ChangeConsumerIT extends IntegrationTest {
         List<String> o = jdbc.queryForList("SELECT outcome FROM recent_change WHERE pipeline = ? AND row_key = ? ORDER BY id DESC LIMIT 1",
                 String.class, pipeline, Long.toString(key));
         return o.isEmpty() ? null : o.getFirst();
+    }
+
+    @Test
+    void topicOfAPipelineThisInstanceDoesNotRunIsLeftUnconsumed() throws Exception {
+        // during a rolling deploy that adds a pipeline, an old instance must not take the new topic's partitions and ack them away
+        String topic = "driftless.cc_newer.public.cc_newer";
+        var config = java.util.Map.<String, Object>of("bootstrap.servers", KAFKA.getBootstrapServers());
+        try (var admin = org.apache.kafka.clients.admin.Admin.create(config)) {
+            admin.createTopics(List.of(new org.apache.kafka.clients.admin.NewTopic(topic, 1, (short) 1))).all().get();
+        }
+        try (var producer = new org.apache.kafka.clients.producer.KafkaProducer<String, String>(config,
+                new org.apache.kafka.common.serialization.StringSerializer(), new org.apache.kafka.common.serialization.StringSerializer())) {
+            producer.send(new org.apache.kafka.clients.producer.ProducerRecord<>(topic, "{\"id\":1}", "{\"op\":\"c\"}")).get();
+        }
+        Thread.sleep(15_000); // three metadata refreshes: a pattern subscription would have picked it up by now
+        assertThat(offsets.committed(topic)).as("offsets committed on another pipeline's topic").isEmpty();
     }
 
     @Test

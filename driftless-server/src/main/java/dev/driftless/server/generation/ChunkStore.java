@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.regex.Pattern;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
@@ -33,8 +34,11 @@ public class ChunkStore {
         return g.chunkTable();
     }
 
+    /** Idempotent. Serialised per table: IF NOT EXISTS isn't atomic, and two instances booting together both call this. */
+    @Transactional
     public void createTable(Generation g) {
         String t = table(g);
+        jdbc.queryForObject("SELECT pg_advisory_xact_lock(hashtext(?))::text", String.class, t);
         jdbc.execute("""
                 CREATE TABLE IF NOT EXISTS %s (
                     row_key       text    NOT NULL,

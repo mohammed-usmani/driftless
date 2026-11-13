@@ -20,7 +20,8 @@ import org.springframework.stereotype.Component;
 /**
  * Reads every pipeline's change topic ({@code driftless.<pipeline>.<schema>.<table>}). Offsets are committed
  * only after the whole batch is applied; any exception redelivers the batch (see KafkaConfig), so nothing is
- * skipped. Records for pipelines this instance doesn't configure are ignored.
+ * skipped. It subscribes to the topics of the pipelines it runs, by name: with a pattern, an instance from before a
+ * pipeline was added would be assigned that pipeline's partitions during a rolling deploy and acknowledge them unread.
  */
 @Component
 public class ChangeConsumer {
@@ -41,7 +42,7 @@ public class ChangeConsumer {
     }
 
     @KafkaListener(id = "changes", groupId = "${driftless.consumer-group:driftless}",
-            topicPattern = "driftless\\.[a-z0-9_]+\\.[a-z0-9_]+\\.[a-z0-9_]+",
+            topics = "#{@connectorManager.changeTopics()}",
             concurrency = "${driftless.consumer-concurrency:3}")
     public void onBatch(List<ConsumerRecord<byte[], byte[]>> records, Acknowledgment ack) {
         Map<String, List<ChangeEvent>> byPipeline = new LinkedHashMap<>();
