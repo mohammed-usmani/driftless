@@ -43,6 +43,7 @@ public class ChangeConsumer {
 
     @KafkaListener(id = "changes", groupId = "${driftless.consumer-group:driftless}",
             topics = "#{@connectorManager.changeTopics()}",
+            autoStartup = "#{@connectorManager.hasPipelines()}",
             concurrency = "${driftless.consumer-concurrency:3}")
     public void onBatch(List<ConsumerRecord<byte[], byte[]>> records, Acknowledgment ack) {
         Map<String, List<ChangeEvent>> byPipeline = new LinkedHashMap<>();

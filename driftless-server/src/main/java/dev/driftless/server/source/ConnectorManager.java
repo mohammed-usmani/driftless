@@ -35,9 +35,17 @@ public class ConnectorManager {
         return "driftless." + p.name() + "." + p.schema() + "." + p.tableName();
     }
 
-    /** The change topics of the pipelines this instance runs; the consumer subscribes to exactly these. */
+    /**
+     * The change topics of the pipelines this instance runs; the consumer subscribes to exactly these. With no
+     * pipelines a listener still needs a topic, so it gets a placeholder and isn't started (see {@link #hasPipelines()}).
+     */
     public String[] changeTopics() {
-        return props.pipelines().stream().map(this::topic).toArray(String[]::new);
+        String[] topics = props.pipelines().stream().map(this::topic).toArray(String[]::new);
+        return topics.length > 0 ? topics : new String[] {"driftless.no-pipelines"};
+    }
+
+    public boolean hasPipelines() {
+        return !props.pipelines().isEmpty();
     }
 
     public String notificationTopic(PipelineConfig p) {

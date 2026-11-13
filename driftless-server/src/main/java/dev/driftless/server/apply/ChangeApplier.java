@@ -43,6 +43,9 @@ public class ChangeApplier {
             truncate(g, e);
             return Outcome.TRUNCATE;
         }
+        if (olderThanLastTruncate(g, e)) {
+            return Outcome.STALE;
+        }
         Optional<RowState> current = rows.lock(g.id(), e.key());
         Outcome outcome = Classifier.classify(e, p, current);
         switch (outcome) {
@@ -80,9 +83,22 @@ public class ChangeApplier {
         return outcome;
     }
 
+    /**
+     * Every apply holds this generation's truncate lock shared until it commits, and a truncate holds it exclusively,
+     * so an apply either finishes before the truncate (which then removes it) or sees the truncate's version.
+     */
+    private boolean olderThanLastTruncate(Generation g, ChangeEvent e) {
+        return Boolean.TRUE.equals(jdbc.queryForObject("""
+                SELECT (?, ?) < (truncated_major, truncated_minor)
+                FROM generation, pg_advisory_xact_lock_shared(hashtextextended(? || ':truncate', 0))
+                WHERE id = ?""", Boolean.class, e.version().major(), e.version().minor(), g.id(), g.id()));
+    }
+
     /** Removes every row applied before the truncate; rows applied after it (a later insert) stay. */
     private void truncate(Generation g, ChangeEvent e) {
         jdbc.queryForList("SELECT pg_advisory_xact_lock(hashtextextended(? || ':truncate', 0))", g.id());
+        jdbc.update("UPDATE generation SET truncated_major = ?, truncated_minor = ? WHERE id = ? AND (truncated_major, truncated_minor) < (?, ?)",
+                e.version().major(), e.version().minor(), g.id(), e.version().major(), e.version().minor());
         String older = "(version_major, version_minor) < (?, ?)";
         jdbc.update("DELETE FROM " + g.chunkTable() + " c USING row_state r WHERE r.generation_id = ? AND r.row_key = c.row_key AND "
                 + older.replace("version", "r.version"), g.id(), e.version().major(), e.version().minor());

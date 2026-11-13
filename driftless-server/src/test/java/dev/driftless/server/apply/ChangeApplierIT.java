@@ -174,6 +174,16 @@ class ChangeApplierIT extends IntegrationTest {
     }
 
     @Test
+    void olderInsertArrivingAfterATruncateIsStale() {
+        // truncate records have no key, so they can be applied while an older insert still waits on another partition
+        ChangeEvent truncate = new ChangeEvent(g.pipeline(), Op.TRUNCATE, null, null, new Version(10, 0), Instant.now(), false, false);
+        applier.apply(g, truncate, Prepared.NONE, null);
+        assertThat(apply(upsert("7", 5, row("Before the truncate", "b", List.of())))).isEqualTo(Outcome.STALE);
+        assertThat(chunkCount("7")).isZero();
+        assertThat(apply(upsert("8", 11, row("After the truncate", "b", List.of())))).isEqualTo(Outcome.EMBED);
+    }
+
+    @Test
     void emptyTextIndexesZeroChunks() {
         assertThat(apply(upsert("1", 1, row(null, null, List.of())))).isEqualTo(Outcome.EMBED);
         assertThat(chunkCount("1")).isZero();
